@@ -47,3 +47,22 @@ def test_keyring_failure_is_reported_without_echoing_secret(monkeypatch):
     with pytest.raises(CredentialStoreError, match="OS credential store") as error:
         KeyringCredentialStore().set("project-id", "test-secret")
     assert "test-secret" not in str(error.value)
+
+
+def test_credentials_are_separated_by_provider(monkeypatch):
+    values = {}
+    fake_keyring = SimpleNamespace(
+        set_password=lambda service, account, secret: values.__setitem__(
+            (service, account), secret
+        ),
+        get_password=lambda service, account: values.get((service, account)),
+        errors=SimpleNamespace(KeyringError=RuntimeError),
+    )
+    monkeypatch.setitem(sys.modules, "keyring", fake_keyring)
+    vault = KeyringCredentialStore()
+
+    vault.set("project-id", "openai-key")
+    vault.set("project-id", "anthropic-key", "anthropic")
+
+    assert vault.get("project-id") == "openai-key"
+    assert vault.get("project-id", "anthropic") == "anthropic-key"
