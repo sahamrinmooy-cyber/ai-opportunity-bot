@@ -55,3 +55,14 @@ def test_project_rejects_malformed_endpoint_and_non_text_settings():
         validate_project(ChatProject(**{**project.__dict__, "endpoint": "https://[malformed/v1"}))
     with pytest.raises(ProjectValidationError, match="must be text"):
         validate_project(ChatProject(**{**project.__dict__, "model": 17}))
+
+
+def test_project_accepts_compatible_gateway_base_path_but_rejects_traversal():
+    project = ChatProject.create("test")
+    gateway = ChatProject(**{**project.__dict__, "endpoint": "https://gateway.example/compat/v1"})
+
+    assert validate_project(gateway) == gateway
+    with pytest.raises(ProjectValidationError, match="traversal"):
+        validate_project(
+            ChatProject(**{**project.__dict__, "endpoint": "https://gateway.example/proxy/../v1"})
+        )
